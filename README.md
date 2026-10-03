@@ -1,0 +1,2 @@
+# ShopLite
+Ecommerce Assessment Project
