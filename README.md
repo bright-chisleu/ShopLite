@@ -91,3 +91,39 @@ On every render the router:
 
 The remaining architecture (store, API layer, and how views subscribe to
 state) is documented as those modules are built.
+## Done
+
+- Project scaffold and folder structure
+- HTML shell with semantic landmarks and accessibility hooks
+- Design tokens and base stylesheet
+- History API router with param matching and focus management
+- API wrapper with in-memory cache and abort support
+- Central store with cart actions and cross-tab sync
+
+# API layer
+
+`js/api.js` is the only place that calls `fetch`. It:
+
+- Prefixes every path with `https://dummyjson.com`.
+- Normalizes failures into an `ApiError` with `status` and `url`.
+- Re-throws `AbortError` so callers can silently ignore cancelled requests.
+- Caches GET responses in a `Map` for five minutes, keyed by full URL.
+
+The `api` object exposes named methods (`listProducts`, `getProduct`,
+`listCategories`) so views don't assemble query strings themselves.
+
+# Store
+
+`js/store.js` is a module-level singleton. It holds the cart, exposes
+subscribe/notify, and persists the cart to `localStorage`. State changes
+flow in one direction: views call actions (`addToCart`, `updateQuantity`,
+`removeFromCart`, `undoRemove`, `clearCart`), the store updates itself,
+saves, and notifies every subscriber.
+
+The router's `cleanup` hook is what makes subscription lifecycles safe:
+each view subscribes in `render()` and returns an unsubscribe function.
+
+The cart is also synced across tabs: a `storage` event listener reads the
+new cart from `localStorage` and notifies subscribers in the current tab.
+
+All money is stored as integer cents.
