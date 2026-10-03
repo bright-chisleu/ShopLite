@@ -57,4 +57,37 @@ Project Structure
     ├── bug-reports.md      Bugs found during testing
     └── api-checks.md       Manual API endpoint checks
 
-    
+## Done
+
+- Project scaffold and folder structure
+- HTML shell with semantic landmarks and accessibility hooks
+- Design tokens and base stylesheet
+- History API router with param matching and focus management
+
+# Architecture
+
+## Router
+
+`js/router.js` owns navigation. It matches `location.pathname` against a
+routes table, dispatches to a view module, and manages the view lifecycle.
+
+Views export a `render(params)` function that returns:
+
+- `element` — the DOM node to mount
+- `title` — the string to assign to `document.title`
+- `cleanup` — optional function called before the next view mounts
+
+Views never navigate on their own. Internal links carry a `data-link`
+attribute, and the router intercepts their clicks, calling `history.pushState`
+and re-rendering. Back and forward are handled by a `popstate` listener.
+
+On every render the router:
+1. Calls the previous view's cleanup function.
+2. Matches the current pathname to a route (or falls back to 404).
+3. Replaces the outlet contents with the new view.
+4. Updates `document.title`.
+5. Moves focus to the page's `<h1>` so screen readers and keyboards land
+   on the new content.
+
+The remaining architecture (store, API layer, and how views subscribe to
+state) is documented as those modules are built.
