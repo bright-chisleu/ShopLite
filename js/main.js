@@ -1,6 +1,7 @@
+// Entry point. For step 1, we just prove ES modules load.
+
 import { startRouter } from './router.js';
 
-const yearEl = document.querySelector('[data-year]');
-if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+document.querySelector('[data-year]').textContent = new Date().getFullYear();
 
 startRouter();
