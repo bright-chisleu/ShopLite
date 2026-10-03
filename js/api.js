@@ -93,17 +93,20 @@ export function clearCache() {
  * Keeps the calling code free of query-string assembly.
  */
 export const api = {
-  listProducts({ limit = 12, skip = 0, search = '', category = '', signal } = {}) {
+    listProducts({ limit = 12, skip = 0, search = '', category = '', sortBy = '', order = '', signal } = {}) {
+    const base = new URLSearchParams({ limit: String(limit), skip: String(skip) });
+    if (sortBy) base.set('sortBy', sortBy);
+    if (order) base.set('order', order);
+
     if (search) {
-      const q = new URLSearchParams({ q: search, limit: String(limit), skip: String(skip) });
+      const q = new URLSearchParams(base);
+      q.set('q', search);
       return get(`/products/search?${q}`, { signal });
     }
     if (category) {
-      const q = new URLSearchParams({ limit: String(limit), skip: String(skip) });
-      return get(`/products/category/${encodeURIComponent(category)}?${q}`, { signal });
+      return get(`/products/category/${encodeURIComponent(category)}?${base}`, { signal });
     }
-    const q = new URLSearchParams({ limit: String(limit), skip: String(skip) });
-    return get(`/products?${q}`, { signal });
+    return get(`/products?${base}`, { signal });
   },
 
   getProduct(id, { signal } = {}) {
