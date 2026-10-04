@@ -57,12 +57,6 @@ Project Structure
     ├── bug-reports.md      Bugs found during testing
     └── api-checks.md       Manual API endpoint checks
 
-## Done
-
-- Project scaffold and folder structure
-- HTML shell with semantic landmarks and accessibility hooks
-- Design tokens and base stylesheet
-- History API router with param matching and focus management
 
 # Architecture
 
@@ -130,3 +124,117 @@ All money is stored as integer cents.
 - Total count after client-side price filter is approximate. The
   status line reflects the API's `total`, not the filtered count, when a
   price range is active.
+
+  # View lifecycle
+
+Each view's `render(params)` returns `{ element, title, mounted?, cleanup? }`.
+
+- The router inserts `element` into the outlet.
+- If `mounted` is a function, the router calls it **after** insertion.
+  This is where a view can query its own DOM (e.g. to populate a select
+  or attach an observer).
+- If `cleanup` is a function, the router calls it **before** the next
+  view mounts. This is where subscriptions are torn down and in-flight
+  requests are aborted.
+
+  # Listing view
+
+`js/views/listing.js` is the largest view. It reads its entire state from
+the URL query string, fetches from the API, and renders a grid of cards.
+
+The query string drives everything:
+
+| Param      | Meaning                                | Example       |
+| ---------- | -------------------------------------- | ------------- |
+| `q`        | Search term                            | `phone`       |
+| `category` | Category slug                          | `smartphones` |
+| `sort`     | Composite sort key                     | `price-asc`   |
+| `page`     | 1-based page number                    | `2`           |
+| `priceMin` | Client-side minimum price, in dollars  | `50`          |
+| `priceMax` | Client-side maximum price, in dollars  | `500`         |
+
+The URL is the single source of truth. Every control reads its value
+from the URL on mount and writes it back on change via `setQuery`.
+Deep-linking works because of this: pasting a URL restores the exact
+view.
+
+Two API-related notes:
+
+- Search uses a separate endpoint. DummyJSON exposes
+  `/products/search?q=...` and `/products/category/{slug}?limit=...`
+  separately. When both a search term and a category are active,
+  search wins — the category is dropped from the request.
+- **Price is applied client-side.** The API has no server-side price
+  filter, so `priceMin`/`priceMax` are applied to the 12 products
+  returned for the current page. The UI shows a hint under the price
+  field so users understand the scope. This is documented under
+  Known issues.
+
+Search input is debounced by 300 ms. A single `AbortController` is
+created per render; every new fetch aborts the previous one, so an
+older response can never overwrite a newer one. The controller is
+aborted in the view's `cleanup()` when the user navigates away.
+
+The view uses the router's `mounted()` hook to populate the category
+dropdown after the element is in the DOM. Categories come from
+`/products/categories` and are cached by the API layer for five minutes.
+
+Pagination is windowed: for 17 pages with the current page at 8, the
+control shows `1 … 6 7 [8] 9 10 … 17`. The window size is 5 and the
+edges shift inward so the current page stays visible.
+
+# Known issues
+
+- Price range is client-side and page-scoped. The DummyJSON API has
+  no server-side price filter, so `priceMin`/`priceMax` are applied to
+  the 12 products returned for the current page. A product outside the
+  current page that matches the range will not appear until you navigate
+  to its page. The UI shows a hint under the price field and a
+  "Showing X of 12 on this page" status to make this clear.
+- Search and category cannot be combined. DummyJSON exposes
+  `/products/search` and `/products/category/{slug}` as separate
+  endpoints. When both a search term and a category are set, search
+  wins and the category is ignored in the request. The category
+  dropdown still reflects the URL, but the results are unfiltered by
+  category.
+- Total count in the status line is the API's total, not the filtered
+  total. When a price range is active, the status line shows both
+  numbers, e.g. "Showing 8 of 12 on this page (price filtered). 1–12 of
+  194 products total." The second half reflects the API's total across
+  all pages.
+- Empty state on page 2+ after a filter change. Applying a price
+  filter or changing search terms resets to page 1, so this shouldn't
+  happen in normal use. If you deep-link to `?q=zzzzz&page=5`, the
+  status will read "No products found" and pagination will be hidden —
+  that's correct.
+
+  # Key decisions
+
+- URL is the state. All listing state (search, category, sort,
+  page, price range) lives in the query string, not in a JS variable
+  that shadows it. This is what makes deep links and back/forward
+  work. It also means one source of truth — you can't get out of
+  sync with the URL because you never maintain parallel state.
+- One fetch per render, aborted on cleanup. Every render creates
+  a fresh `AbortController`. Navigating away aborts any in-flight
+  request. The previous behaviour (each keystroke firing a fetch and
+  letting the fastest win) is a classic source of stale-data bugs;
+  aborting makes it impossible by construction.
+- Money in integer cents. Prices, subtotal, discount, shipping
+  and total are all integer cents. Floats are converted for display
+  only. This will matter more in the cart step where a 10% discount
+  on a subtotal of $500.00 is easy to get wrong by a cent.
+- Client-side price filter, clearly labelled. The brief calls for
+  a client-side price filter. Rather than pretend it's server-side,
+  the UI hints at the scope and the status line reports the filtered
+  count against the current page. Being honest about a limitation is
+  better than hiding it.
+- Router guards against broken views. If a view's `render()`
+  throws or returns an object without an `element`, the router logs
+  the offending route and renders the 404 view. This turns a
+  hard-to-debug blank page into a visible error.
+- Custom events for cross-module signalling. When the empty
+  state's "Clear filters" button needs to trigger a full re-render,
+  the listing view dispatches `shoplite:rerender` instead of
+  importing the router (which would create a circular dependency).
+  `main.js` is the only module that wires the event to the router.
