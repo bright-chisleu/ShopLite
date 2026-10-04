@@ -89,17 +89,6 @@ On every render the router:
 5. Moves focus to the page's `<h1>` so screen readers and keyboards land
    on the new content.
 
-The remaining architecture (store, API layer, and how views subscribe to
-state) is documented as those modules are built.
-## Done
-
-- Project scaffold and folder structure
-- HTML shell with semantic landmarks and accessibility hooks
-- Design tokens and base stylesheet
-- History API router with param matching and focus management
-- API wrapper with in-memory cache and abort support
-- Central store with cart actions and cross-tab sync
-
 # API layer
 
 `js/api.js` is the only place that calls `fetch`. It:
@@ -127,3 +116,17 @@ The cart is also synced across tabs: a `storage` event listener reads the
 new cart from `localStorage` and notifies subscribers in the current tab.
 
 All money is stored as integer cents.
+
+# Known issues
+
+- Price range only filters the current page. The DummyJSON API has no
+  server-side price filter, so `priceMin`/`priceMax` are applied after
+  fetching 12 products. A product outside the current page that matches
+  the price range will not appear until you navigate to its page.
+- Category and search share one API call. Combining a search term
+  with a category is not supported by DummyJSON — the API exposes
+  `/products/search` OR `/products/category/{slug}`, not both. When both
+  are set, search wins.
+- Total count after client-side price filter is approximate. The
+  status line reflects the API's `total`, not the filtered count, when a
+  price range is active.
