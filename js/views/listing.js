@@ -1,7 +1,8 @@
 import { api } from '../api.js';
 import { readQuery, readInt, setQuery } from '../utils/url.js';
 import { formatCents } from '../utils/money.js';
-
+import { addToCart } from '../store.js';
+import { flashButton } from '../utils/ui.js';
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -468,11 +469,30 @@ function createProductCard(product) {
   meta.className = 'product-card__meta';
   meta.textContent = `★ ${Number(product.rating ?? 0).toFixed(1)}`;
 
-  const price = document.createElement('p');
+    const price = document.createElement('p');
   price.className = 'product-card__price';
   price.textContent = formatCents(Math.round(product.price * 100));
 
-  body.append(title, meta, price);
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'product-card__add';
+  addBtn.textContent = 'Add to cart';
+  addBtn.setAttribute('aria-label', `Add ${product.title} to cart`);
+  addBtn.addEventListener('click', () => {
+    addToCart(
+      {
+        id: product.id,
+        title: product.title,
+        price: Math.round(product.price * 100), // cents
+        thumbnail: product.thumbnail,
+        stock: product.stock ?? 0,
+      },
+      1
+    );
+    flashButton(addBtn);
+  });
+
+  body.append(title, meta, price, addBtn);
   li.append(link, body);
   return li;
 }
