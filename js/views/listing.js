@@ -132,20 +132,24 @@ export function render(_params) {
     load();
   }
 
-          function handlePriceApply(min, max) {
+        function handlePriceApply(min, max) {
     state.priceMin = min;
     state.priceMax = max;
-    state.page = 1;   // any filter change resets pagination
+
+    // Re-filter from the raw (unfiltered) page data, never from a
+    // previously filtered list.
+    state._filtering = true;
+    const raw = grid._rawProducts ?? [];
+    renderProducts(grid, applyClientFilters(raw, state), state);
+    state._filtering = false;
+
+    updateStatus(raw, state);
+    updatePaginationCounts(raw, state);
 
     setQuery({
       priceMin: min === null ? null : String(min),
       priceMax: max === null ? null : String(max),
-      page: null,     // drop page from the URL
     });
-
-    // Re-fetch so the raw cache matches the new page state.
-    load();
-  }
   }
 
     function handlePriceClear() {

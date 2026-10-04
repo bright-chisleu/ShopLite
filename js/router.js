@@ -74,12 +74,23 @@ function render() {
   const { view, params } = match || { view: notFound, params: {} };
 
   // 3. Render the view
+    // 3. Render the view
   let result;
   try {
     result = view.render(params);
   } catch (err) {
     console.error('View render failed:', err);
     result = notFound.render({});
+  }
+
+  // Guard against views that forget to return a result.
+  if (!result || !result.element) {
+    console.error(
+      `View for "${window.location.pathname}" returned an invalid result:`,
+      result
+    );
+    result = notFound.render({});
+    result.title = 'Something went wrong — ShopLite';
   }
 
     // 4. Swap the DOM
