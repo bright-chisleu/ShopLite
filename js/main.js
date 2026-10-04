@@ -1,4 +1,4 @@
-import { startRouter } from './router.js';
+import { startRouter, rerender } from './router.js';
 import { subscribe } from './store.js';
 
 const yearEl = document.querySelector('[data-year]');
@@ -32,7 +32,9 @@ subscribe((state) => {
   }
   previousItemCount = state.itemCount;
 });
-
+// Views can request a full re-render (e.g. after clearing filters
+// via replaceState) without importing the router themselves.
+window.addEventListener('shoplite:rerender', () => rerender());
 // --- Boot ---
 
 startRouter();

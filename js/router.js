@@ -135,6 +135,14 @@ export function navigate(path, { replace = false } = {}) {
 }
 
 /**
+ * Re-render the current location without touching the URL.
+ * Useful for a view that has mutated query state via replaceState
+ * and wants the tree to reflect it.
+ */
+export function rerender() {
+  render();
+}
+/**
  * Intercept clicks on internal links marked with [data-link].
  * External links, modifier-key clicks, and downloads pass through.
  */
