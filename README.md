@@ -207,6 +207,13 @@ edges shift inward so the current page stays visible.
   happen in normal use. If you deep-link to `?q=zzzzz&page=5`, the
   status will read "No products found" and pagination will be hidden —
   that's correct.
+  - Undo expires after 5 seconds. Removing an item shows an undo bar
+  for five seconds. After that, the item is gone (the store no longer
+  retains it). This matches the brief; a longer window would require
+  keeping removed items in memory indefinitely.
+- clear cart uses the browser's `confirm()`. Not the prettiest UI,
+  but accessible and reliable. A custom modal would be nicer but is out
+  of scope for the brief.
 
   # Key decisions
 
@@ -238,3 +245,21 @@ edges shift inward so the current page stays visible.
   the listing view dispatches `shoplite:rerender` instead of
   importing the router (which would create a circular dependency).
   `main.js` is the only module that wires the event to the router.
+
+  # Cart view
+
+`js/views/cart.js` subscribes to the store and repaints on every state
+change. Because the store notifies on the `storage` event too, the cart
+also updates live when another tab modifies it — no explicit cross-tab
+wiring in this view.
+
+All money math lives in `js/utils/cart-math.js`. The cart view and the
+checkout view both call `computeTotals()` so the numbers can never
+disagree. Rules:
+
+- Subtotal is the sum of `price × quantity` across lines.
+- 10% discount applies when subtotal is **over $500.00**.
+- Shipping is $9.99, free when subtotal is **over $100.00**.
+- Total = subtotal − discount + shipping.
+
+Every value is integer cents; formatting happens only at the edges.
