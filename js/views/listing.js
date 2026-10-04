@@ -43,7 +43,7 @@ export function render(_params) {
   grid.setAttribute('aria-busy', 'true');
   grid.setAttribute('aria-label', 'Products');
 
-  const form = buildFilterForm(state, {
+    const form = buildFilterForm(state, {
     onSearchChange: handleSearch,
     onCategoryChange: handleCategory,
     onSortChange: handleSort,
@@ -51,7 +51,12 @@ export function render(_params) {
     onPriceClear: handlePriceClear,
   });
 
-  section.append(h1, form, status, grid);
+  const pagination = document.createElement('nav');
+  pagination.className = 'pagination';
+  pagination.setAttribute('aria-label', 'Pagination');
+  pagination.hidden = true;
+
+  section.append(h1, form, status, grid, pagination);
 
   // ----- Data loading -----
 
@@ -78,12 +83,28 @@ export function render(_params) {
 
       if (controller.signal.aborted) return;
 
-      const products = applyClientFilters(data.products ?? [], state);
-      renderProducts(grid, products);
+            const products = applyClientFilters(data.products ?? [], state);
+      state.total = Number.isFinite(data.total) ? data.total : products.length;
+      state.totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
 
-      const total = Number.isFinite(data.total) ? data.total : products.length;
-      const noun = total === 1 ? 'product' : 'products';
-      status.textContent = `${total} ${noun} found.`;
+      renderProducts(grid, products, state);
+      renderPagination(pagination, state, (page) => {
+        state.page = page;
+        setQuery({ page: page === 1 ? null : String(page) });
+        load();
+        // Move focus back to the heading so screen readers announce the
+        // new page context.
+        h1.focus({ preventScroll: true });
+        window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+      });
+
+      const noun = state.total === 1 ? 'product' : 'products';
+      const from = state.total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
+      const to = Math.min(state.page * PAGE_SIZE, state.total);
+      status.textContent =
+        state.total === 0
+          ? 'No products found.'
+          : `Showing ${from}–${to} of ${state.total} ${noun}.`;
     } catch (err) {
       if (err && err.name === 'AbortError') return;
       console.error(err);
@@ -325,13 +346,13 @@ function renderSkeletons(grid, count) {
   grid.replaceChildren(frag);
 }
 
-function renderProducts(grid, products) {
+function renderProducts(grid, products, state) {
   // Cache the raw product list on the grid element so client-side
   // price filtering doesn't need a re-fetch.
   grid._lastProducts = products;
 
   if (products.length === 0) {
-    grid.replaceChildren();
+    grid.replaceChildren(buildEmptyState(state));
     return;
   }
 
@@ -340,6 +361,42 @@ function renderProducts(grid, products) {
     frag.append(createProductCard(product));
   }
   grid.replaceChildren(frag);
+}
+
+function buildEmptyState(state) {
+  const li = document.createElement('li');
+  li.className = 'product-grid__empty';
+
+  const h2 = document.createElement('h2');
+  h2.className = 'product-grid__empty-title';
+  h2.textContent = 'No products found';
+
+  const p = document.createElement('p');
+  const hasFilters =
+    state.q || state.category || state.priceMin !== null || state.priceMax !== null;
+  p.textContent = hasFilters
+    ? 'Try adjusting your search or filters.'
+    : 'There is nothing to show right now.';
+
+  li.append(h2, p);
+
+  if (hasFilters) {
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'product-grid__clear';
+    clear.textContent = 'Clear filters';
+    clear.addEventListener('click', () => {
+      // Clear every filter from the URL and reload the view.
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.pushState({}, '', url.pathname);
+      // Re-render by forcing the router to dispatch:
+      import('../router.js').then(({ navigate }) => navigate(url.pathname));
+    });
+    li.append(clear);
+  }
+
+  return li;
 }
 
 function createProductCard(product) {
@@ -384,20 +441,120 @@ function createProductCard(product) {
 }
 
 function renderError(grid, onRetry) {
-  grid.replaceChildren();
   const li = document.createElement('li');
   li.className = 'product-grid__error';
 
+  const h2 = document.createElement('h2');
+  h2.className = 'product-grid__error-title';
+  h2.textContent = 'Something went wrong';
+
   const msg = document.createElement('p');
-  msg.textContent = 'Failed to load products.';
+  msg.textContent = 'We could not load products. Check your connection and try again.';
 
   const btn = document.createElement('button');
   btn.type = 'button';
+  btn.className = 'product-grid__retry';
   btn.textContent = 'Retry';
   btn.addEventListener('click', onRetry);
 
-  li.append(msg, btn);
-  grid.append(li);
+  li.append(h2, msg, btn);
+  grid.replaceChildren(li);
+}
+
+// ---------- Pagination ----------
+
+/**
+ * Compute the visible page numbers for a paginated list.
+ * Returns e.g. [1, '…', 5, 6, 7, '…', 17].
+ */
+function buildPageWindow(current, total, size = 5) {
+  if (total <= size + 2) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const half = Math.floor(size / 2);
+  let start = Math.max(2, current - half);
+  let end = Math.min(total - 1, current + half);
+
+  // Shift the window if we hit an edge
+  if (current - half < 2) {
+    end = Math.min(total - 1, size + 1);
+  }
+  if (current + half > total - 1) {
+    start = Math.max(2, total - size);
+  }
+
+  const out = [1];
+  if (start > 2) out.push('…');
+  for (let i = start; i <= end; i++) out.push(i);
+  if (end < total - 1) out.push('…');
+  out.push(total);
+  return out;
+}
+
+function renderPagination(nav, state, onPageChange) {
+  if (!state.totalPages || state.totalPages <= 1) {
+    nav.hidden = true;
+    nav.replaceChildren();
+    return;
+  }
+
+  nav.hidden = false;
+  const frag = document.createDocumentFragment();
+
+  const makeButton = (label, page, { disabled = false, current = false, aria } = {}) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.className = 'pagination__button';
+    if (current) {
+      btn.classList.add('pagination__button--current');
+      btn.setAttribute('aria-current', 'page');
+    }
+    if (disabled) btn.disabled = true;
+    if (aria) btn.setAttribute('aria-label', aria);
+    if (!disabled && !current) {
+      btn.addEventListener('click', () => onPageChange(page));
+    }
+    return btn;
+  };
+
+  // Prev
+  frag.append(
+    makeButton('Previous', state.page - 1, {
+      disabled: state.page <= 1,
+      aria: 'Previous page',
+    })
+  );
+
+  // Numbers
+  const window = buildPageWindow(state.page, state.totalPages);
+  for (const item of window) {
+    if (item === '…') {
+      const span = document.createElement('span');
+      span.className = 'pagination__ellipsis';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = '…';
+      frag.append(span);
+      continue;
+    }
+    frag.append(
+      makeButton(String(item), item, {
+        current: item === state.page,
+        aria: `Page ${item}`,
+      })
+    );
+  }
+
+  // Next
+  frag.append(
+    makeButton('Next', state.page + 1, {
+      disabled: state.page >= state.totalPages,
+      aria: 'Next page',
+    })
+  );
+
+  nav.replaceChildren(frag);
 }
 
 // ---------- Categories (fetched separately and cached by the API layer) ----------
