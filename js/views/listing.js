@@ -98,13 +98,7 @@ export function render(_params) {
         window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
       });
 
-      const noun = state.total === 1 ? 'product' : 'products';
-      const from = state.total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
-      const to = Math.min(state.page * PAGE_SIZE, state.total);
-      status.textContent =
-        state.total === 0
-          ? 'No products found.'
-          : `Showing ${from}–${to} of ${state.total} ${noun}.`;
+            updateStatus(data.products ?? [], state);
     } catch (err) {
       if (err && err.name === 'AbortError') return;
       console.error(err);
@@ -138,13 +132,20 @@ export function render(_params) {
     load();
   }
 
-  function handlePriceApply(min, max) {
+        function handlePriceApply(min, max) {
     state.priceMin = min;
     state.priceMax = max;
-    // Price filter is client-side, so we don't need to refetch — re-render
-    // the current data with the new filter applied.
-    const lastProducts = grid._lastProducts ?? [];
-    renderProducts(grid, applyClientFilters(lastProducts, state));
+
+    // Re-filter from the raw (unfiltered) page data, never from a
+    // previously filtered list.
+    state._filtering = true;
+    const raw = grid._rawProducts ?? [];
+    renderProducts(grid, applyClientFilters(raw, state), state);
+    state._filtering = false;
+
+    updateStatus(raw, state);
+    updatePaginationCounts(raw, state);
+
     setQuery({
       priceMin: min === null ? null : String(min),
       priceMax: max === null ? null : String(max),
@@ -154,27 +155,17 @@ export function render(_params) {
   function handlePriceClear() {
     state.priceMin = null;
     state.priceMax = null;
-    const lastProducts = grid._lastProducts ?? [];
-    renderProducts(grid, applyClientFilters(lastProducts, state));
+
+    state._filtering = true;
+    const raw = grid._rawProducts ?? [];
+    renderProducts(grid, applyClientFilters(raw, state), state);
+    state._filtering = false;
+
+    updateStatus(raw, state);
+    updatePaginationCounts(raw, state);
+
     setQuery({ priceMin: null, priceMax: null });
   }
-
-  // Kick off
-   // Kick off the product fetch
-  load();
-
-  return {
-    element: section,
-    title: 'Products — ShopLite',
-    mounted() {
-      // The router has now inserted `section` into the DOM, so the
-      // category <select> exists and can be populated from the API.
-      hydrateCategories();
-    },
-    cleanup() {
-      controller.abort();
-    },
-  };
 }
 
 // ---------- Filter form ----------
@@ -305,12 +296,15 @@ function buildFilterForm(state, handlers) {
   priceInputs.className = 'filter__row';
   priceInputs.append(minInput, maxInput);
 
-  const priceActions = document.createElement('div');
+    const priceActions = document.createElement('div');
   priceActions.className = 'filter__row';
   priceActions.append(applyBtn, clearBtn);
 
-  priceWrap.append(priceInputs, priceActions);
+  const hint = document.createElement('p');
+  hint.className = 'filter__hint';
+  hint.textContent = 'Filters the current page of results.';
 
+  priceWrap.append(priceInputs, priceActions, hint);
   form.append(searchWrap, catWrap, sortWrap, priceWrap);
   return form;
 }
@@ -347,9 +341,11 @@ function renderSkeletons(grid, count) {
 }
 
 function renderProducts(grid, products, state) {
-  // Cache the raw product list on the grid element so client-side
-  // price filtering doesn't need a re-fetch.
-  grid._lastProducts = products;
+  // `products` here may already be filtered by price. Only update the
+  // raw cache when the caller passes a fresh, unfiltered list.
+  if (!state._filtering) {
+    grid._rawProducts = products;
+  }
 
   if (products.length === 0) {
     grid.replaceChildren(buildEmptyState(state));
@@ -361,6 +357,33 @@ function renderProducts(grid, products, state) {
     frag.append(createProductCard(product));
   }
   grid.replaceChildren(frag);
+}
+
+function updateStatus(rawProducts, state) {
+  const status = document.querySelector('.listing-status');
+  if (!status) return;
+
+  if (state.total === 0) {
+    status.textContent = 'No products found.';
+    return;
+  }
+
+  const visible = applyClientFilters(rawProducts, state).length;
+  const noun = state.total === 1 ? 'product' : 'products';
+  const from = (state.page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(state.page * PAGE_SIZE, state.total);
+
+  if (state.priceMin !== null || state.priceMax !== null) {
+    status.textContent = `Showing ${visible} of ${rawProducts.length} on this page (price filtered). ${from}–${to} of ${state.total} ${noun} total.`;
+  } else {
+    status.textContent = `Showing ${from}–${to} of ${state.total} ${noun}.`;
+  }
+}
+
+function updatePaginationCounts(_rawProducts, _state) {
+  // Pagination follows the API's `total`, not the client-side filtered
+  // count. This stub exists as a single place to hang future refinements
+  // (e.g. hiding pages with no visible products).
 }
 
 function buildEmptyState(state) {
@@ -386,14 +409,11 @@ function buildEmptyState(state) {
     clear.className = 'product-grid__clear';
     clear.textContent = 'Clear filters';
     clear.addEventListener('click', () => {
-      // Clear every filter from the URL and reload the view.
-      const url = new URL(window.location.href);
-      url.search = '';
-      window.history.pushState({}, '', url.pathname);
-      // Re-render by forcing the router to dispatch:
-      import('../router.js').then(({ navigate }) => navigate(url.pathname));
+      // Strip every query param and let the router re-dispatch.
+      // The router listens for 'shoplite:rerender' (see main.js).
+      window.history.pushState({}, '', window.location.pathname);
+      window.dispatchEvent(new CustomEvent('shoplite:rerender'));
     });
-    li.append(clear);
   }
 
   return li;

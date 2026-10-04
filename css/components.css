@@ -196,6 +196,13 @@
   margin: 0;
 }
 
+.filter__hint {
+  margin: var(--space-1) 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  grid-column: 1 / -1;
+}
+
 .filter input,
 .filter select {
   padding: var(--space-2) var(--space-3);
