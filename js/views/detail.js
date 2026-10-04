@@ -107,15 +107,13 @@ function renderProduct(container, product) {
   h1.className = 'detail__title';
   h1.textContent = product.title;
 
-  // Layout: gallery on the left, info on the right.
   const layout = document.createElement('div');
   layout.className = 'detail__layout';
 
   const gallery = buildGallery(product);
-  const info = buildInfo(product, h1);
+  const info = buildInfo(product);
 
   layout.append(gallery, info);
-
   container.replaceChildren(h1, layout);
 }
 
@@ -207,12 +205,9 @@ function buildGallery(product) {
   return wrap;
 }
 
-function buildInfo(product, h1) {
+function buildInfo(product) {
   const info = document.createElement('div');
   info.className = 'detail__info';
-
-  // h1 is created by the caller; reuse it here so the page has one <h1>.
-  info.append(h1);
 
   // Brand
   if (product.brand) {
@@ -268,8 +263,6 @@ function buildInfo(product, h1) {
   const form = document.createElement('form');
   form.className = 'detail__form';
   form.addEventListener('submit', (e) => e.preventDefault());
-
-  const stock = Number(product.stock ?? 0);
 
   const qtyLabel = document.createElement('label');
   qtyLabel.htmlFor = 'detail-qty';
