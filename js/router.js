@@ -82,15 +82,25 @@ function render() {
     result = notFound.render({});
   }
 
-  // 4. Swap the DOM
+    // 4. Swap the DOM
   outlet.replaceChildren(result.element);
 
-  // 5. Update the page title
+  // 5. Update title
   document.title = result.title || 'ShopLite';
 
-  // 6. Store the cleanup function for the next render
+  // 6. Save cleanup for next time
   if (typeof result.cleanup === 'function') {
     currentCleanup = result.cleanup;
+  }
+
+  // 6b. Run the post-mount hook — the view is now in the document,
+  //     so it can query its own elements and kick off late work.
+  if (typeof result.mounted === 'function') {
+    try {
+      result.mounted();
+    } catch (err) {
+      console.error('View mounted hook failed:', err);
+    }
   }
 
   // 7. Move focus to the new page heading
