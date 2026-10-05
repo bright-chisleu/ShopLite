@@ -31,34 +31,41 @@ Clone the repository, then serve the folder:
 
 Open http://localhost:3000 in a browser.
 
-Project Structure
-.
+## Project Structure
+```
+ShopLite/
 ├── index.html              App shell
 ├── _redirects              Netlify SPA fallback
+├── serve.json              Local dev SPA fallback for `npx serve`
 ├── css/
 │   ├── tokens.css          Design tokens (colors, spacing, typography)
 │   ├── base.css            Reset, layout, typography, breakpoints
 │   └── components.css      Component-level styles
 ├── js/
-│   ├── main.js             Entry point
-│   ├── router.js           History API routing
-│   ├── api.js              Fetch wrapper with caching and abort handling
-│   ├── store.js            Central app state, localStorage persistence
+│   ├── main.js             Entry point — shell wiring and router boot
+│   ├── router.js           History API routing and view lifecycle
+│   ├── api.js              Fetch wrapper with in-memory cache
+│   ├── store.js            Central state, cart, localStorage, cross-tab
 │   ├── utils/
-│   │   ├── money.js        Integer-cent money helpers
-│   │   ├── luhn.js         Card number validation
-│   │   └── url.js          Query string parsing and serialization
+│   │   ├── money.js        Integer-cent formatting
+│   │   ├── cart-math.js    Subtotal, discount, shipping, total
+│   │   ├── luhn.js         Card validation and formatting
+│   │   ├── validation.js   Per-field form validation
+│   │   ├── url.js          Query string helpers
+│   │   └── ui.js           Small UI helpers (flashButton)
 │   └── views/
-│       ├── listing.js      Product listing
-│       ├── detail.js       Product detail
-│       ├── cart.js         Cart
-│       ├── checkout.js     Checkout and confirmation
-│       └── notFound.js     404
+│       ├── listing.js      /              Product grid
+│       ├── detail.js       /product/:id    Product detail
+│       ├── cart.js         /cart           Cart
+│       ├── checkout.js     /checkout       Checkout and confirmation
+│       └── notFound.js     404 fallback
 └── qa/
     ├── test-plan.md        Scope, risks, environments
-    ├── test-cases.md       Manual test cases
-    ├── bug-reports.md      Bugs found during testing
-    └── api-checks.md       Manual API endpoint checks
+    ├── test-cases.md       Scripted test cases
+    ├── bug-reports.md      Bugs found and their status
+    ├── api-checks.md       Manual API endpoint checks
+    └── SUMMARY.md          PM-facing release recommendation
+```
 
 
 # Architecture
