@@ -114,21 +114,7 @@ new cart from `localStorage` and notifies subscribers in the current tab.
 
 All money is stored as integer cents.
 
-# Known issues
-
-- Price range only filters the current page. The DummyJSON API has no
-  server-side price filter, so `priceMin`/`priceMax` are applied after
-  fetching 12 products. A product outside the current page that matches
-  the price range will not appear until you navigate to its page.
-- Category and search share one API call. Combining a search term
-  with a category is not supported by DummyJSON — the API exposes
-  `/products/search` OR `/products/category/{slug}`, not both. When both
-  are set, search wins.
-- Total count after client-side price filter is approximate. The
-  status line reflects the API's `total`, not the filtered count, when a
-  price range is active.
-
-  # View lifecycle
+# View lifecycle
 
 Each view's `render(params)` returns `{ element, title, mounted?, cleanup? }`.
 
@@ -250,7 +236,7 @@ edges shift inward so the current page stays visible.
   produced with `Date.now()` and `Math.random()`. They are unique
   enough for a demo but not guaranteed unique and not cryptographically
   random.
-  
+
   # Key decisions
 
 - URL is the state. All listing state (search, category, sort,
