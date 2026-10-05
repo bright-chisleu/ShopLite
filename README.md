@@ -215,6 +215,15 @@ edges shift inward so the current page stays visible.
   but accessible and reliable. A custom modal would be nicer but is out
   of scope for the brief.
 
+- Checkout confirmation does not survive a page refresh. After
+  placing an order, refreshing `/checkout` shows the "Nothing to check
+  out" state (the cart was cleared). The order number is not persisted
+  anywhere. In a real app you would store the order server-side and
+  navigate to an order confirmation URL.
+- Order numbers are client-generated. `SHL-...` strings are
+  produced with `Date.now()` and `Math.random()`. They are unique enough
+  for a demo but not guaranteed unique and not cryptographically random.
+
   # Key decisions
 
 - URL is the state. All listing state (search, category, sort,
@@ -263,3 +272,29 @@ disagree. Rules:
 - Total = subtotal − discount + shipping.
 
 Every value is integer cents; formatting happens only at the edges.
+
+# Checkout
+
+`js/views/checkout.js` renders a form on the left and an order summary
+on the right. The summary calls the same `computeTotals()` as the cart,
+so the numbers can't drift between views.
+
+Validation lives in `js/utils/validation.js`. Each field has its own
+rule:
+
+| Field    | Rule                                                                 |
+| -------- | -------------------------------------------------------------------- |
+| name     | Non-empty, 2–80 chars                                                |
+| email    | Non-empty, matches `something@something.something`                   |
+| phone    | Non-empty, starts with a digit or `+`, 6–30 chars of digits/spaces  |
+| address  | Non-empty, ≤120 chars                                                |
+| city     | Non-empty, ≤60 chars                                                 |
+| postcode | Non-empty, alphanumeric with optional spaces/hyphens                 |
+| card     | 12–19 digits, passes the Luhn algorithm                              |
+
+The form uses the browser's Constraint Validation API in spirit —
+`required` and `aria-required` are set on every input — but disables
+native validation (`noValidate`) so we control the messages. Field
+errors appear on blur, clear on input, and are announced via
+`role="alert"` + `
+
