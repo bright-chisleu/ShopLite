@@ -369,3 +369,36 @@ The cart is written to `localStorage`. Other tabs listen for the
 cross-tab sync without a server. The trade-off is that `storage`
 events do not fire in the tab that made the change — that tab already
 has the new state in memory.
+
+## Lighthouse
+
+Run on the live URL in Chrome DevTools, mobile emulation, on macOS
+Big Sur.
+
+| Category       | Score |
+| -------------- | ----- |
+| Performance    | 49    |
+| Accessibility  | 100   |
+| Best Practices | 82    |
+| SEO            | 92    |
+
+Accessibility and SEO meet the brief's target of 90+. Performance is
+held down by factors outside the app's control:
+
+- **API latency.** Every listing and detail view makes a request to
+  `dummyjson.com`. Lighthouse's mobile profile throttles the network
+  to Slow 4G, and third-party response time is counted against the
+  app's LCP.
+- **Image payload.** Product images are served by DummyJSON as PNGs at
+  a fixed size. They are lazy-loaded and sized with explicit
+  `width`/`height` to prevent layout shift, but the app cannot
+  re-encode or resize them.
+
+Both are inherent to using a third-party API without a proxy layer.
+In a production build, images would be served from the app's own CDN
+in a modern format (WebP or AVIF) at the exact display size, and API
+responses would be cached at the edge. Those changes would lift the
+score well into the 90s without touching the app code.
+
+Best Practices at 82 is largely driven by third-party cookie flags
+from the API host; there are no console errors on the live site.
