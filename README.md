@@ -318,3 +318,54 @@ native validation (`noValidate`) so we control the messages. Field
 errors appear on blur, clear on input, and are announced via
 `role="alert"` + `
 
+## Key decisions and trade-offs
+
+### No framework, by design
+
+The brief forbids frameworks, libraries, and bundlers. Every piece of
+routing, state, and rendering is hand-rolled. This makes the code
+larger than a React equivalent but keeps every dependency visible and
+auditable.
+
+### URL is the source of truth
+
+All listing state (search, category, sort, page, price) lives in the
+query string. Views read from the URL on mount and write to it on
+change. This is what makes deep links and back/forward work. The
+trade-off is more code in `setQuery` and `readQuery`, but the
+behaviour is consistent everywhere.
+
+### Money in integer cents
+
+Every price, subtotal, discount, shipping charge, and total is an
+integer number of cents. Floats are converted for display only. This
+eliminates the `0.1 + 0.2 !== 0.3` class of bugs that would otherwise
+surface in the cart totals.
+
+### Client-side price filter
+
+The DummyJSON API has no server-side price filter. The brief specifies
+a client-side filter, so this matches the requirement. The trade-off
+is that the price filter only sees the 12 products on the current
+page. The UI hints at this, and the limitation is documented.
+
+### Search vs category
+
+DummyJSON exposes `/products/search` and `/products/category/{slug}`
+as separate endpoints. When both a search term and a category are set,
+search wins. This is documented in Known Issues.
+
+### In-memory cache in the API layer
+
+GET responses are cached for 5 minutes, keyed by full URL. Revisiting
+a product page or a filtered listing does not refetch. The trade-off
+is that data can be up to 5 minutes stale. For a demo storefront this
+is acceptable; a production app would need explicit invalidation.
+
+### Cross-tab sync via storage event
+
+The cart is written to `localStorage`. Other tabs listen for the
+`storage` event and update their in-memory state. This gives free
+cross-tab sync without a server. The trade-off is that `storage`
+events do not fire in the tab that made the change — that tab already
+has the new state in memory.
