@@ -78,9 +78,10 @@ export function render(_params) {
     const inputs = {};
     const errors = {};
 
-    for (const field of FIELDS) {
+        for (const field of FIELDS) {
       const group = document.createElement('div');
-      group.className = 'field';
+      const isWide = field.name === 'address' || field.name === 'card';
+      group.className = isWide ? 'field field--wide' : 'field';
 
       const label = document.createElement('label');
       label.htmlFor = `checkout-${field.name}`;
