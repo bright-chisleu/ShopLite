@@ -126,7 +126,7 @@ Each view's `render(params)` returns `{ element, title, mounted?, cleanup? }`.
   view mounts. This is where subscriptions are torn down and in-flight
   requests are aborted.
 
-  # Listing view
+# Listing view
 
 `js/views/listing.js` is the largest view. It reads its entire state from
 the URL query string, fetches from the API, and renders a grid of cards.
@@ -207,7 +207,7 @@ edges shift inward so the current page stays visible.
   happen in normal use. If you deep-link to `?q=zzzzz&page=5`, the
   status will read "No products found" and pagination will be hidden —
   that's correct.
-  - Undo expires after 5 seconds. Removing an item shows an undo bar
+- Undo expires after 5 seconds. Removing an item shows an undo bar
   for five seconds. After that, the item is gone (the store no longer
   retains it). This matches the brief; a longer window would require
   keeping removed items in memory indefinitely.
