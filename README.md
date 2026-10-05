@@ -4,7 +4,10 @@ Ecommerce Assessment Project
 
 A small single-page storefront built with plain HTML, CSS, and JavaScript.
 Product data comes from the [DummyJSON Products API](https://dummyjson.com/docs/products).
+## QA
 
+Test plan, test cases, bug reports, API checks, and a summary are in
+the [`qa/`](./qa) folder. Start with [`qa/SUMMARY.md`](./qa/SUMMARY.md).
 ## Live
 
 - Deployed: https://shoplitemarket.netlify.app
@@ -185,6 +188,17 @@ edges shift inward so the current page stays visible.
 
 # Known issues
 
+- Price range only filters the current page. The DummyJSON API has no
+  server-side price filter, so `priceMin`/`priceMax` are applied after
+  fetching 12 products. A product outside the current page that matches
+  the price range will not appear until you navigate to its page.
+- Category and search share one API call. Combining a search term
+  with a category is not supported by DummyJSON — the API exposes
+  `/products/search` OR `/products/category/{slug}`, not both. When both
+  are set, search wins.
+- Total count after client-side price filter is approximate. The
+  status line reflects the API's `total`, not the filtered count, when a
+  price range is active.
 - Price range is client-side and page-scoped. The DummyJSON API has
   no server-side price filter, so `priceMin`/`priceMax` are applied to
   the 12 products returned for the current page. A product outside the
@@ -223,7 +237,20 @@ edges shift inward so the current page stays visible.
 - Order numbers are client-generated. `SHL-...` strings are
   produced with `Date.now()` and `Math.random()`. They are unique enough
   for a demo but not guaranteed unique and not cryptographically random.
-
+- Checkout confirmation does not survive a page refresh. After
+  placing an order, refreshing `/checkout` shows the "Nothing to check
+  out" state (the cart was cleared). The order number is not persisted
+  anywhere. In a real app you would store the order server-side and
+  navigate to an order confirmation URL.
+- Undo bar remains interactive on an empty cart. After removing
+  the last item, the undo bar stays visible for its 5-second window
+  even though the cart is now empty. Documented as BUG-06 in
+  `qa/bug-reports.md`.
+- Order numbers are client-generated. `SHL-...` strings are
+  produced with `Date.now()` and `Math.random()`. They are unique
+  enough for a demo but not guaranteed unique and not cryptographically
+  random.
+  
   # Key decisions
 
 - URL is the state. All listing state (search, category, sort,
